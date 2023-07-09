@@ -1,0 +1,38 @@
+# Fichier main.tf
+
+provider "vsphere" {
+  user           = "vSphere_username"
+  password       = "vSphere_password"
+  vsphere_server = "vSphere_server_address"
+  allow_unverified_ssl = true
+}
+
+resource "vsphere_virtual_machine" "flatcar_vm" {
+  name             = "FlatcarOS_VM"
+  resource_pool_id = "resource_pool_id"
+
+  datastore_id = "datastore_id"
+
+  num_cpus = 2
+  memory   = 4096
+
+  guest_id = "flatcar-container-linux-2303"
+
+  disk {
+    label            = "system_disk"
+    size             = 20
+    eagerly_scrub    = false
+    thin_provisioned = true
+    datastore_id     = "datastore_id"
+  }
+
+  cdrom {
+    datastore_id = "datastore_id"
+    path         = "path_to_iso/FlatcarOS.iso"
+  }
+
+  network_interface {
+    network_id   = "network_id"
+    adapter_type = "vmxnet3"
+  }
+}

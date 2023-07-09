@@ -1,0 +1,81 @@
+terraform {
+  required_providers {
+    vsphere = {
+      source  = "hashicorp/vsphere"
+      version = ">= 2.0"
+    }
+  }
+}
+
+provider "vsphere" {
+  user                 = "administrator@vsphere.local"
+  password             = "password"
+  vsphere_server       = "ip"
+  allow_unverified_ssl = true
+}
+
+data "vsphere_datacenter" "datacenter" {
+  name = "Securiport"
+}
+
+data "vsphere_datastore" "datastore" {
+  name          = "datastore"
+  datacenter_id = data.vsphere_datacenter.datacenter.id
+}
+
+data "vsphere_compute_cluster" "cluster" {
+  name          = "cluster"
+  datacenter_id = data.vsphere_datacenter.datacenter.id
+}
+
+data "vsphere_resource_pool" "default" {
+  name          = format("%s%s", data.vsphere_compute_cluster.cluster.name, "/Resources")
+  datacenter_id = data.vsphere_datacenter.datacenter.id
+}
+
+data "vsphere_host" "host" {
+  name          = "192.168.1.17"
+  datacenter_id = data.vsphere_datacenter.datacenter.id
+}
+
+data "vsphere_network" "network" {
+  name          = "VM Network"
+  datacenter_id = data.vsphere_datacenter.datacenter.id
+}
+
+
+## Deployment of VM from Local iso
+resource "vsphere_virtual_machine" "vmFromLocaliso" {
+  name                 = "flatcar"
+#  datacenter_id        = data.vsphere_datacenter.datacenter.id
+  num_cpus             = 6
+  num_cores_per_socket = 3
+  memory               = 4096
+  guest_id             = "other5xLinux64Guest"
+  datastore_id         = data.vsphere_datastore.datastore.id
+  host_system_id       = data.vsphere_host.host.id
+  resource_pool_id     = data.vsphere_resource_pool.default.id
+
+  wait_for_guest_net_timeout = 0
+  wait_for_guest_ip_timeout  = 0
+  disk {
+    label       = "disk0"
+    size        = "30"
+  }
+  cdrom {
+    datastore_id = data.vsphere_datastore.datastore.id
+    path         = "flatcar_production_iso_image.iso"
+  }
+
+  network_interface {
+    network_id = data.vsphere_network.network.id
+  }
+
+  provisioner "local-exec" {
+    command = "flatcar-install -d /dev/sda  --ignition /tmp/ignition.json -o vmware_raw  --insecure-ignition"
+
+
+  }
+
+
+
